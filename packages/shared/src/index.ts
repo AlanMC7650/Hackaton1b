@@ -11,3 +11,4 @@ export * from './numeric.transformer';
 export * from './error-handler';
 export * from './internal-key.middleware';
 export * from './internal-client';
+export * from './validate';

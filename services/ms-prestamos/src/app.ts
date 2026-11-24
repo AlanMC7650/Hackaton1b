@@ -9,6 +9,7 @@ import {
   requireInternalKey as internalKeyMiddleware,
 } from '@chuno/shared';
 import { createHealthRouter } from './routes/health.routes';
+import { createPrestamoRouter } from './routes/prestamo.routes';
 
 const SERVICE_NAME = 'ms-prestamos';
 
@@ -38,10 +39,10 @@ export function createApp(customInternalRoutes?: Router) {
   if (customInternalRoutes) {
     internalRouter.use(customInternalRoutes);
   }
-  // TODO HU-11: montar routers internos
+  // ms-prestamos no expone rutas internas: ningún servicio lo llama.
   app.use('/internal', internalRouter);
 
-  // TODO HU-11: montar routers públicos
+  app.use('/prestamos', createPrestamoRouter());
 
   app.use((_req, _res, next) => {
     next(new AppError('NOT_FOUND', 'Ruta no encontrada'));

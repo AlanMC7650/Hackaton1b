@@ -27,7 +27,8 @@ const blockInternalAccess: RequestHandler = (req, _res, next) => {
         .split(/[/?#]/)
         .map((segment) => segment.split(';')[0].toLowerCase());
       if (segments.includes('internal')) {
-        next(new AppError('FORBIDDEN', 'Las rutas internas no están disponibles desde el gateway'));
+        // 404 y no 403: desde afuera las rutas internas simplemente no existen.
+        next(new AppError('NOT_FOUND', 'Ruta no encontrada'));
         return;
       }
       next();

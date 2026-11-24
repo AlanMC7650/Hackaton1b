@@ -1,0 +1,217 @@
+x-http-healthcheck: &http-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 6
+  start_period: 20s
+
+x-backend-runtime: &backend-runtime
+  init: true
+  restart: unless-stopped
+  networks:
+    - backend
+
+x-common-environment: &common-environment
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:-chuno-internal-dev}
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: chuno
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "chuno"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.init
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/chuno
+    networks: [backend]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  ms-clientes:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: services/ms-clientes/Dockerfile
+    environment:
+      <<: *common-environment
+      PORT: "3001"
+      DATABASE_URL: "postgres://user_clientes:chuno_local_clientes_2026@db:5432/chuno"
+      DB_SCHEMA: clientes
+      JWT_SECRET: ${JWT_SECRET:-chuno-jwt-dev}
+    expose:
+      - "3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:3001/health"]
+
+  ms-cuentas:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: services/ms-cuentas/Dockerfile
+    environment:
+      <<: *common-environment
+      PORT: "3002"
+      DATABASE_URL: "postgres://user_cuentas:chuno_local_cuentas_2026@db:5432/chuno"
+      DB_SCHEMA: cuentas
+      CLIENTES_SERVICE_URL: http://ms-clientes:3001
+    expose:
+      - "3002"
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:3002/health"]
+
+  ms-pagos:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: services/ms-pagos/Dockerfile
+    environment:
+      <<: *common-environment
+      PORT: "3003"
+      DATABASE_URL: "postgres://user_pagos:chuno_local_pagos_2026@db:5432/chuno"
+      DB_SCHEMA: pagos
+      CUENTAS_SERVICE_URL: http://ms-cuentas:3002
+      EXTERNOS_SERVICE_URL: http://mock-externos:3010
+    expose:
+      - "3003"
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:3003/health"]
+
+  ms-transferencias:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: services/ms-transferencias/Dockerfile
+    environment:
+      <<: *common-environment
+      PORT: "3004"
+      DATABASE_URL: "postgres://user_transferencias:chuno_local_transferencias_2026@db:5432/chuno"
+      DB_SCHEMA: transferencias
+      CUENTAS_SERVICE_URL: http://ms-cuentas:3002
+      EXTERNOS_SERVICE_URL: http://mock-externos:3010
+    expose:
+      - "3004"
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:3004/health"]
+
+  ms-prestamos:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: services/ms-prestamos/Dockerfile
+    environment:
+      <<: *common-environment
+      PORT: "3005"
+      DATABASE_URL: "postgres://user_prestamos:chuno_local_prestamos_2026@db:5432/chuno"
+      DB_SCHEMA: prestamos
+      CUENTAS_SERVICE_URL: http://ms-cuentas:3002
+      CLIENTES_SERVICE_URL: http://ms-clientes:3001
+    expose:
+      - "3005"
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:3005/health"]
+
+  mock-externos:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: services/mock-externos/Dockerfile
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: "3010"
+    expose:
+      - "3010"
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:3010/health"]
+
+  gateway:
+    <<: *backend-runtime
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      <<: *common-environment
+      PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:-chuno-jwt-dev}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173}
+      CLIENTES_SERVICE_URL: http://ms-clientes:3001
+      CUENTAS_SERVICE_URL: http://ms-cuentas:3002
+      PAGOS_SERVICE_URL: http://ms-pagos:3003
+      TRANSFERENCIAS_SERVICE_URL: http://ms-transferencias:3004
+      PRESTAMOS_SERVICE_URL: http://ms-prestamos:3005
+    ports:
+      - "8080:8080"
+    depends_on:
+      ms-clientes:
+        condition: service_healthy
+      ms-cuentas:
+        condition: service_healthy
+      ms-pagos:
+        condition: service_healthy
+      ms-transferencias:
+        condition: service_healthy
+      ms-prestamos:
+        condition: service_healthy
+      mock-externos:
+        condition: service_healthy
+    healthcheck:
+      <<: *http-healthcheck
+      test: ["CMD", "curl", "-fsS", "--max-time", "4", "http://localhost:8080/health"]
+
+volumes:
+  db-data:
+
+networks:
+  backend:
+    driver: bridge

@@ -1,0 +1,38 @@
+{
+  "name": "chuno-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Microservicios de Banca por Internet - STARTUP CHUNO",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "gateway"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"gateway/**/*.ts\" \"services/**/*.ts\" \"packages/**/*.ts\" \"*.json\" \"*.md\"",
+    "format:check": "prettier --check \"gateway/**/*.ts\" \"services/**/*.ts\" \"packages/**/*.ts\" \"*.json\" \"*.md\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "db:up": "docker compose up -d --wait db",
+    "db:reset": "docker compose down -v db && docker compose up -d --wait db",
+    "db:migrate": "npm run build --workspace=@chuno/shared && npm run migration:run --workspaces --if-present",
+    "db:seed": "npm run seed:dev --workspace=ms-clientes --if-present && npm run seed:dev --workspace=ms-cuentas --if-present && npm run seed:dev --workspace=ms-pagos --if-present && npm run seed:dev --workspace=ms-transferencias --if-present && npm run seed:dev --workspace=ms-prestamos --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "pg": "^8.23.1",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.1"
+  }
+}

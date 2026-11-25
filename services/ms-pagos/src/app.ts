@@ -9,6 +9,7 @@ import {
   requireInternalKey as internalKeyMiddleware,
 } from '@chuno/shared';
 import { createHealthRouter } from './routes/health.routes';
+import { createPagosRouter } from './routes/pagos.routes';
 
 const SERVICE_NAME = 'ms-pagos';
 
@@ -41,7 +42,7 @@ export function createApp(customInternalRoutes?: Router) {
   // TODO HU-08: montar routers internos
   app.use('/internal', internalRouter);
 
-  // TODO HU-08: montar routers públicos
+  app.use('/pagos', createPagosRouter());
 
   app.use((_req, _res, next) => {
     next(new AppError('NOT_FOUND', 'Ruta no encontrada'));

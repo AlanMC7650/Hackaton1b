@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { AppError, createLogger, errorHandler, requestId } from '@chuno/shared';
 import { createHealthRouter } from './routes/health.routes';
+import { createAchRouter, createEmpresasRouter } from './routes/externos.routes';
 
 const SERVICE_NAME = 'mock-externos';
 
@@ -25,7 +26,8 @@ export function createApp() {
   app.use(express.json());
   app.use('/health', createHealthRouter(SERVICE_NAME));
 
-  // TODO HU-07: montar routers de empresas de servicios y red interbancaria ACH
+  app.use('/empresas', createEmpresasRouter());
+  app.use('/ach', createAchRouter());
 
   app.use((_req, _res, next) => {
     next(new AppError('NOT_FOUND', 'Ruta no encontrada'));

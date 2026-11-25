@@ -9,6 +9,7 @@ import {
   requireInternalKey as internalKeyMiddleware,
 } from '@chuno/shared';
 import { createHealthRouter } from './routes/health.routes';
+import { createTransferenciaRouter } from './routes/transferencia.routes';
 
 const SERVICE_NAME = 'ms-transferencias';
 
@@ -38,10 +39,11 @@ export function createApp(customInternalRoutes?: Router) {
   if (customInternalRoutes) {
     internalRouter.use(customInternalRoutes);
   }
-  // TODO HU-09/HU-10: montar routers internos
+  // ms-transferencias no expone rutas internas: ningún otro servicio la llama.
   app.use('/internal', internalRouter);
 
-  // TODO HU-09/HU-10: montar routers públicos
+  // Rutas públicas (el gateway reenvía /api/transferencias/* como /transferencias/*).
+  app.use('/transferencias', createTransferenciaRouter());
 
   app.use((_req, _res, next) => {
     next(new AppError('NOT_FOUND', 'Ruta no encontrada'));

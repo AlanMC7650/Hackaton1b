@@ -12,7 +12,7 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
     "typecheck": "tsc --noEmit",
-    "seed:dev": "echo \"Sin semilla a\u00fan\""
+    "seed:dev": "ts-node src/seeds/clientes.seed.ts"
   },
   "dependencies": {
     "@chuno/shared": "*",

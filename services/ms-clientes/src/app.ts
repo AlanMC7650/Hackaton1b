@@ -8,7 +8,10 @@ import {
   requestId,
   requireInternalKey as internalKeyMiddleware,
 } from '@chuno/shared';
+import { authRouter } from './routes/auth.routes';
+import { clienteRouter } from './routes/cliente.routes';
 import { createHealthRouter } from './routes/health.routes';
+import { internalClienteRouter } from './routes/internal.routes';
 
 const SERVICE_NAME = 'ms-clientes';
 
@@ -35,13 +38,14 @@ export function createApp(customInternalRoutes?: Router) {
   app.use('/health', createHealthRouter(SERVICE_NAME));
 
   const internalRouter = Router();
+  internalRouter.use(internalClienteRouter);
   if (customInternalRoutes) {
     internalRouter.use(customInternalRoutes);
   }
-  // TODO HU-03/HU-04: montar routers internos
   app.use('/internal', internalRouter);
 
-  // TODO HU-03/HU-04: montar routers públicos
+  app.use('/clientes/auth', authRouter);
+  app.use('/clientes', clienteRouter);
 
   app.use((_req, _res, next) => {
     next(new AppError('NOT_FOUND', 'Ruta no encontrada'));

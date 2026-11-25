@@ -9,6 +9,8 @@ import {
   requireInternalKey as internalKeyMiddleware,
 } from '@chuno/shared';
 import { createHealthRouter } from './routes/health.routes';
+import { createCuentasRouter } from './routes/cuentas.routes';
+import { createInternalCuentasRouter } from './routes/internal.routes';
 
 const SERVICE_NAME = 'ms-cuentas';
 
@@ -32,16 +34,23 @@ export function createApp(customInternalRoutes?: Router) {
   // La clave se valida antes de interpretar el body o resolver la ruta.
   app.use('/internal', protectInternal);
   app.use(express.json());
+  app.use((error: unknown, _req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    if (error instanceof SyntaxError && 'type' in error && error.type === 'entity.parse.failed') {
+      next(AppError.badRequest('El cuerpo debe ser JSON válido'));
+      return;
+    }
+    next(error);
+  });
   app.use('/health', createHealthRouter(SERVICE_NAME));
 
   const internalRouter = Router();
   if (customInternalRoutes) {
     internalRouter.use(customInternalRoutes);
   }
-  // TODO HU-05/HU-06: montar routers internos
+  internalRouter.use(createInternalCuentasRouter());
   app.use('/internal', internalRouter);
 
-  // TODO HU-05/HU-06: montar routers públicos
+  app.use('/cuentas', createCuentasRouter());
 
   app.use((_req, _res, next) => {
     next(new AppError('NOT_FOUND', 'Ruta no encontrada'));
